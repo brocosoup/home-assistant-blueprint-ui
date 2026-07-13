@@ -199,6 +199,26 @@ blueprint:
               step: 1
               unit_of_measurement: min
               mode: box
+        nominal_open_position:
+          name: "🎯 Nominal opening position"
+          default: 50
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
+        position_tolerance_percent:
+          name: "± Position tolerance"
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 20
+              step: 1
+              unit_of_measurement: "%"
+              mode: box
         cooldown_minutes:
           name: "⏳ Cooldown before a new check"
           default: 45
@@ -258,7 +278,9 @@ action:
               - condition: template
                 value_template: >-
                   {% set current_position = state_attr(garage_cover, 'current_position') | int(0) %}
-                  {{ 49 < current_position < 51 }}
+                  {% set target_position = nominal_open_position | int(50) %}
+                  {% set tolerance = position_tolerance_percent | int(1) %}
+                  {{ target_position - tolerance < current_position < target_position + tolerance }}
               - condition: or
                 conditions:
                   - condition: state
@@ -324,7 +346,7 @@ action:
         sequence:
           - service: cover.set_cover_position
             data:
-              position: 50
+              position: !input nominal_open_position
             target:
               entity_id: !input garage_cover
         alias: Ouverture Nominale
@@ -381,6 +403,8 @@ variables:
   sun_open_before_minutes: !input sun_open_before_minutes
   sun_close_after_minutes: !input sun_close_after_minutes
   sun_close_before_minutes: !input sun_close_before_minutes
+  nominal_open_position: !input nominal_open_position
+  position_tolerance_percent: !input position_tolerance_percent
   cooldown_minutes: !input cooldown_minutes
   sun_open_after_offset: >-
     {% set value = sun_open_after_minutes | int %}
