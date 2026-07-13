@@ -159,30 +159,50 @@ blueprint:
         the sun-based logic.
       collapsed: true
       input:
-        sun_open_after_offset:
+        sun_open_after_minutes:
           name: "☀️ Open window starts after sunrise"
-          description: "Use Home Assistant offset format, for example 00:30:00"
-          default: "00:30:00"
+          description: "Minutes after sunrise"
+          default: 30
           selector:
-            text: {}
-        sun_open_before_offset:
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_open_before_minutes:
           name: "🌅 Open window ends before sunset"
-          description: "Use Home Assistant offset format, for example 00:15:00"
-          default: "00:15:00"
+          description: "Minutes before sunset"
+          default: 15
           selector:
-            text: {}
-        sun_close_after_offset:
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_close_after_minutes:
           name: "🌙 Close window starts after sunset"
-          description: "Use Home Assistant offset format, for example -00:15:00"
-          default: "-00:15:00"
+          description: "Minutes after sunset"
+          default: -15
           selector:
-            text: {}
-        sun_close_before_offset:
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_close_before_minutes:
           name: "🌤️ Close window ends before sunrise"
-          description: "Use Home Assistant offset format, for example 00:30:00"
-          default: "00:30:00"
+          description: "Minutes before sunrise"
+          default: 30
           selector:
-            text: {}
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
         nominal_open_position:
           name: "🎯 Nominal opening position"
           default: 50
@@ -298,9 +318,9 @@ action:
                 below: !input distance_open_threshold
               - condition: sun
                 after: sunrise
-                after_offset: !input sun_open_after_offset
+                after_offset: "{{ sun_open_after_offset }}"
                 before: sunset
-                before_offset: !input sun_open_before_offset
+                before_offset: "{{ sun_open_before_offset }}"
               - condition: state
                 entity_id: !input authorization_switch
                 state: "on"
@@ -346,9 +366,9 @@ action:
                         above: !input distance_open_threshold
                       - condition: sun
                         after: sunset
-                        after_offset: !input sun_close_after_offset
+                        after_offset: "{{ sun_close_after_offset }}"
                         before: sunrise
-                        before_offset: !input sun_close_before_offset
+                        before_offset: "{{ sun_close_before_offset }}"
                       - condition: and
                         conditions:
                           - condition: trigger
@@ -383,6 +403,30 @@ variables:
   foudre_seuil_danger: !input lightning_danger_threshold
   foudre_seuil_sur: !input lightning_safe_threshold
   autorisation_garage: !input authorization_switch
+  sun_open_after_minutes: !input sun_open_after_minutes
+  sun_open_before_minutes: !input sun_open_before_minutes
+  sun_close_after_minutes: !input sun_close_after_minutes
+  sun_close_before_minutes: !input sun_close_before_minutes
   nominal_open_position: !input nominal_open_position
   position_tolerance_percent: !input position_tolerance_percent
   cooldown_minutes: !input cooldown_minutes
+  sun_open_after_offset: >-
+    {% set value = sun_open_after_minutes | int %}
+    {% set sign = '-' if value < 0 else '' %}
+    {% set abs_value = value | abs %}
+    {{ sign ~ '%02d:%02d:00' | format(abs_value // 60, abs_value % 60) }}
+  sun_open_before_offset: >-
+    {% set value = sun_open_before_minutes | int %}
+    {% set sign = '-' if value < 0 else '' %}
+    {% set abs_value = value | abs %}
+    {{ sign ~ '%02d:%02d:00' | format(abs_value // 60, abs_value % 60) }}
+  sun_close_after_offset: >-
+    {% set value = sun_close_after_minutes | int %}
+    {% set sign = '-' if value < 0 else '' %}
+    {% set abs_value = value | abs %}
+    {{ sign ~ '%02d:%02d:00' | format(abs_value // 60, abs_value % 60) }}
+  sun_close_before_offset: >-
+    {% set value = sun_close_before_minutes | int %}
+    {% set sign = '-' if value < 0 else '' %}
+    {% set abs_value = value | abs %}
+    {{ sign ~ '%02d:%02d:00' | format(abs_value // 60, abs_value % 60) }}
