@@ -103,6 +103,16 @@ blueprint:
               step: 0.5
               unit_of_measurement: °C
               mode: box
+        temp_open_threshold:
+          name: "🌤️ Opening temperature threshold"
+          default: 16
+          selector:
+            number:
+              min: -30
+              max: 40
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
         temp_warm_threshold:
           name: "☀️ Warm temperature threshold"
           default: 23
@@ -267,12 +277,12 @@ action:
                     value_template: >-
                       {% set outside = states(temp_ext) | float(0) %}
                       {% set garage = states(temp_garage) | float(0) %}
-                      {{ 16 < outside < garage }}
+                      {{ temp_seuil_ouverture < outside < garage }}
                   - condition: template
                     value_template: >-
                       {% set outside = states(temp_ext) | float(0) %}
                       {% set garage = states(temp_garage) | float(0) %}
-                      {{ outside < 16 and outside > garage }}
+                      {{ outside < temp_seuil_ouverture and outside > garage }}
         sequence:
           - service: cover.set_cover_position
             data:
@@ -329,6 +339,7 @@ variables:
   temp_ext: !input outside_temp_sensor
   temp_garage: !input garage_temp_sensor
   temp_seuil_confort: !input temp_comfort_threshold
+  temp_seuil_ouverture: !input temp_open_threshold
   temp_seuil_chaud: !input temp_warm_threshold
   foudre_distance: !input lightning_distance_sensor
   foudre_seuil_danger: !input lightning_danger_threshold
