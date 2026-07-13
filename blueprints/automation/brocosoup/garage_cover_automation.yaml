@@ -1,5 +1,5 @@
 blueprint:
-  name: "🚪 Garage Cover Automation v1.0"
+  name: "🚪 Garage Cover Automation v1.1"
   author: brocosoup
   description: >-
     🌤️ This blueprint gives your garage cover a smart, weather-aware behavior.
@@ -159,30 +159,90 @@ blueprint:
         the sun-based logic.
       collapsed: true
       input:
-        sun_open_after_offset:
-          name: "☀️ Open window starts after sunrise"
-          description: "Use HH:MM or HH:MM:SS, for example 00:30"
-          default: "00:30"
+        sun_open_start_offset_minutes:
+          name: "☀️ Opening window start offset"
+          description: "Minutes before/after sunrise. Negative values are allowed."
+          default: 30
           selector:
-            time: {}
-        sun_open_before_offset:
-          name: "🌅 Open window ends before sunset"
-          description: "Use HH:MM or HH:MM:SS, for example 00:15"
-          default: "00:15"
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_open_start_direction:
+          name: "☀️ Opening window start relation"
+          default: after
           selector:
-            time: {}
-        sun_close_after_offset:
-          name: "🌙 Close window starts after sunset"
-          description: "Use HH:MM or HH:MM:SS with a leading minus sign, for example -00:15"
-          default: "-00:15"
+            select:
+              options:
+                - label: After
+                  value: after
+                - label: Before
+                  value: before
+        sun_open_end_offset_minutes:
+          name: "🌅 Opening window end offset"
+          description: "Minutes before/after sunset. Negative values are allowed."
+          default: 15
           selector:
-            text: {}
-        sun_close_before_offset:
-          name: "🌤️ Close window ends before sunrise"
-          description: "Use HH:MM or HH:MM:SS, for example 00:30"
-          default: "00:30"
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_open_end_direction:
+          name: "🌅 Opening window end relation"
+          default: before
           selector:
-            time: {}
+            select:
+              options:
+                - label: Before
+                  value: before
+                - label: After
+                  value: after
+        sun_close_start_offset_minutes:
+          name: "🌙 Closing window start offset"
+          description: "Minutes before/after sunset. Negative values are allowed."
+          default: -15
+          selector:
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_close_start_direction:
+          name: "🌙 Closing window start relation"
+          default: after
+          selector:
+            select:
+              options:
+                - label: After
+                  value: after
+                - label: Before
+                  value: before
+        sun_close_end_offset_minutes:
+          name: "🌤️ Closing window end offset"
+          description: "Minutes before/after sunrise. Negative values are allowed."
+          default: 30
+          selector:
+            number:
+              min: -180
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        sun_close_end_direction:
+          name: "🌤️ Closing window end relation"
+          default: before
+          selector:
+            select:
+              options:
+                - label: Before
+                  value: before
+                - label: After
+                  value: after
         nominal_open_position:
           name: "🎯 Nominal opening position"
           default: 50
@@ -296,11 +356,16 @@ action:
               - condition: numeric_state
                 entity_id: !input distance_sensor
                 below: !input distance_open_threshold
-              - condition: sun
-                after: sunrise
-                after_offset: !input sun_open_after_offset
-                before: sunset
-                before_offset: !input sun_open_before_offset
+              - condition: template
+                value_template: >-
+                  {% set now_ts = as_timestamp(now()) %}
+                  {% set sunrise_ts = as_timestamp(state_attr('sun.sun', 'next_rising')) | default(0) %}
+                  {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) | default(0) %}
+                  {% set start_offset_seconds = sun_open_start_offset_minutes | int(0) * 60 %}
+                  {% set end_offset_seconds = sun_open_end_offset_minutes | int(0) * 60 %}
+                  {% set start_time = sunrise_ts + start_offset_seconds if sun_open_start_direction == 'after' else sunrise_ts - start_offset_seconds %}
+                  {% set end_time = sunset_ts + end_offset_seconds if sun_open_end_direction == 'after' else sunset_ts - end_offset_seconds %}
+                  {{ start_time <= now_ts <= end_time }}
               - condition: state
                 entity_id: !input authorization_switch
                 state: "on"
@@ -344,11 +409,16 @@ action:
                       - condition: numeric_state
                         entity_id: !input distance_sensor
                         above: !input distance_open_threshold
-                      - condition: sun
-                        after: sunset
-                        after_offset: !input sun_close_after_offset
-                        before: sunrise
-                        before_offset: !input sun_close_before_offset
+                      - condition: template
+                        value_template: >-
+                          {% set now_ts = as_timestamp(now()) %}
+                          {% set sunrise_ts = as_timestamp(state_attr('sun.sun', 'next_rising')) | default(0) %}
+                          {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) | default(0) %}
+                          {% set start_offset_seconds = sun_close_start_offset_minutes | int(0) * 60 %}
+                          {% set end_offset_seconds = sun_close_end_offset_minutes | int(0) * 60 %}
+                          {% set start_time = sunset_ts + start_offset_seconds if sun_close_start_direction == 'after' else sunset_ts - start_offset_seconds %}
+                          {% set end_time = sunrise_ts + end_offset_seconds if sun_close_end_direction == 'after' else sunrise_ts - end_offset_seconds %}
+                          {{ start_time <= now_ts <= end_time }}
                       - condition: and
                         conditions:
                           - condition: trigger
@@ -383,6 +453,14 @@ variables:
   foudre_seuil_danger: !input lightning_danger_threshold
   foudre_seuil_sur: !input lightning_safe_threshold
   autorisation_garage: !input authorization_switch
+  sun_open_start_offset_minutes: !input sun_open_start_offset_minutes
+  sun_open_start_direction: !input sun_open_start_direction
+  sun_open_end_offset_minutes: !input sun_open_end_offset_minutes
+  sun_open_end_direction: !input sun_open_end_direction
+  sun_close_start_offset_minutes: !input sun_close_start_offset_minutes
+  sun_close_start_direction: !input sun_close_start_direction
+  sun_close_end_offset_minutes: !input sun_close_end_offset_minutes
+  sun_close_end_direction: !input sun_close_end_direction
   nominal_open_position: !input nominal_open_position
   position_tolerance_percent: !input position_tolerance_percent
   cooldown_minutes: !input cooldown_minutes
