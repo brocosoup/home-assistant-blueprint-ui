@@ -1,5 +1,5 @@
 blueprint:
-  name: "🚪 Garage Cover Automation"
+  name: "🚪 Garage Cover Automation v1.0"
   author: brocosoup
   description: >-
     🌤️ This blueprint gives your garage cover a smart, weather-aware behavior.
