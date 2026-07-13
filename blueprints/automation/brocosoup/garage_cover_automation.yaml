@@ -160,7 +160,7 @@ blueprint:
       input:
         cooldown_minutes:
           name: "⏳ Cooldown before a new check"
-          default: 30
+          default: 45
           selector:
             number:
               min: 0
