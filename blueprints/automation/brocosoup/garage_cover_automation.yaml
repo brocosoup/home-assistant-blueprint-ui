@@ -1,129 +1,163 @@
 blueprint:
-  name: Garage Cover Automation
+  name: "🚪 Garage Cover Automation"
+  author: brocosoup
   description: >-
-    Configure garage cover opening and closing based on distance,
-    temperature, lightning risk, and manual authorization.
+    🌤️ This blueprint gives your garage cover a smart, weather-aware behavior.
+
+    It can open or close based on distance, temperature, lightning risk, and a
+    manual authorization switch.
   source_url: https://github.com/brocosoup/home-assistant-blueprint-ui/blob/main/blueprints/automation/brocosoup/garage_cover_automation.yaml
   domain: automation
   input:
-    garage_cover:
-      name: Garage cover
-      description: The garage cover entity to control.
-      selector:
-        entity:
-          domain:
-            - cover
-          multiple: false
-    outside_temp_sensor:
-      name: Outdoor temperature sensor
-      description: Sensor used for the outside temperature comparison.
-      selector:
-        entity:
-          domain:
-            - sensor
-          multiple: false
-    garage_temp_sensor:
-      name: Garage temperature sensor
-      description: Sensor used for the garage temperature comparison.
-      selector:
-        entity:
-          domain:
-            - sensor
-          multiple: false
-    distance_sensor:
-      name: Nearest house distance sensor
-      description: Sensor giving the nearest house distance.
-      selector:
-        entity:
-          domain:
-            - sensor
-          multiple: false
-    lightning_distance_sensor:
-      name: Lightning distance sensor
-      description: Sensor giving lightning distance.
-      selector:
-        entity:
-          domain:
-            - sensor
-          multiple: false
-    authorization_switch:
-      name: Garage authorization switch
-      description: Boolean that authorizes automatic garage movement.
-      selector:
-        entity:
-          domain:
-            - input_boolean
-          multiple: false
-    distance_open_threshold:
-      name: Opening distance threshold
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 1000
-          step: 1
-          unit_of_measurement: m
-          mode: box
-    distance_close_threshold:
-      name: Closing distance threshold
-      default: 500
-      selector:
-        number:
-          min: 0
-          max: 1000
-          step: 1
-          unit_of_measurement: m
-          mode: box
-    temp_comfort_threshold:
-      name: Comfort temperature threshold
-      default: 18
-      selector:
-        number:
-          min: -30
-          max: 40
-          step: 0.5
-          unit_of_measurement: °C
-          mode: box
-    temp_warm_threshold:
-      name: Warm temperature threshold
-      default: 23
-      selector:
-        number:
-          min: -30
-          max: 40
-          step: 0.5
-          unit_of_measurement: °C
-          mode: box
-    lightning_danger_threshold:
-      name: Lightning danger threshold
-      default: 20
-      selector:
-        number:
-          min: 0
-          max: 200
-          step: 1
-          unit_of_measurement: km
-          mode: box
-    lightning_safe_threshold:
-      name: Lightning safe threshold
-      default: 81
-      selector:
-        number:
-          min: 0
-          max: 200
-          step: 1
-          unit_of_measurement: km
-          mode: box
-    cooldown_minutes:
-      name: Cooldown before a new check
-      default: 30
-      selector:
-        number:
-          min: 0
-          max: 180
-          step: 1
-          unit_of_measurement: min
-          mode: box
+    garage_section:
+      name: "🚪 Garage Cover"
+      icon: mdi:garage
+      description: >-
+        Choose the cover entity and the helper that allows or blocks automatic
+        movement.
+      collapsed: true
+      input:
+        garage_cover:
+          name: "🚪 Garage cover"
+          description: The garage cover entity to control.
+          selector:
+            entity:
+              domain:
+                - cover
+              multiple: false
+        authorization_switch:
+          name: "🔐 Authorization switch"
+          description: Boolean that authorizes automatic garage movement.
+          selector:
+            entity:
+              domain:
+                - input_boolean
+              multiple: false
+    distance_section:
+      name: "📏 Distance Logic"
+      icon: mdi:ruler
+      description: >-
+        Set the distance thresholds used to decide whether the garage should open
+        or close.
+      collapsed: true
+      input:
+        distance_sensor:
+          name: "📍 Nearest house distance"
+          description: Sensor giving the nearest house distance.
+          selector:
+            entity:
+              domain:
+                - sensor
+              multiple: false
+        distance_open_threshold:
+          name: "⬅️ Opening distance threshold"
+          default: 200
+          selector:
+            number:
+              min: 0
+              max: 1000
+              step: 1
+              unit_of_measurement: m
+              mode: box
+        distance_close_threshold:
+          name: "➡️ Closing distance threshold"
+          default: 500
+          selector:
+            number:
+              min: 0
+              max: 1000
+              step: 1
+              unit_of_measurement: m
+              mode: box
+    weather_section:
+      name: "🌡️🌩️ Temperature & Weather"
+      icon: mdi:weather-partly-cloudy
+      description: >-
+        Fine-tune the comfort temperature thresholds and the lightning safety
+        margin.
+      collapsed: true
+      input:
+        outside_temp_sensor:
+          name: "🌤️ Outdoor temperature"
+          description: Sensor used for the outside temperature comparison.
+          selector:
+            entity:
+              domain:
+                - sensor
+              multiple: false
+        garage_temp_sensor:
+          name: "🏠 Garage temperature"
+          description: Sensor used for the garage temperature comparison.
+          selector:
+            entity:
+              domain:
+                - sensor
+              multiple: false
+        temp_comfort_threshold:
+          name: "🌡️ Comfort temperature threshold"
+          default: 18
+          selector:
+            number:
+              min: -30
+              max: 40
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+        temp_warm_threshold:
+          name: "☀️ Warm temperature threshold"
+          default: 23
+          selector:
+            number:
+              min: -30
+              max: 40
+              step: 0.5
+              unit_of_measurement: °C
+              mode: box
+        lightning_distance_sensor:
+          name: "⚡ Lightning distance"
+          description: Sensor giving lightning distance.
+          selector:
+            entity:
+              domain:
+                - sensor
+              multiple: false
+        lightning_danger_threshold:
+          name: "🚨 Lightning danger threshold"
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 200
+              step: 1
+              unit_of_measurement: km
+              mode: box
+        lightning_safe_threshold:
+          name: "🛡️ Lightning safe threshold"
+          default: 81
+          selector:
+            number:
+              min: 0
+              max: 200
+              step: 1
+              unit_of_measurement: km
+              mode: box
+    timing_section:
+      name: "⏱️ Timing"
+      icon: mdi:timer-cog
+      description: >-
+        Set the cooldown between checks to avoid too frequent cover movement.
+      collapsed: true
+      input:
+        cooldown_minutes:
+          name: "⏳ Cooldown before a new check"
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 180
+              step: 1
+              unit_of_measurement: min
+              mode: box
 
 mode: single
 trigger:
