@@ -1,0 +1,303 @@
+blueprint:
+  name: Garage Cover Automation
+  description: >-
+    Configure garage cover opening and closing based on distance,
+    temperature, lightning risk, and manual authorization.
+  source_url: https://github.com/brocosoup/home-assistant-blueprint-ui/blob/main/blueprints/automation/brocosoup/garage_cover_automation.yaml
+  domain: automation
+  input:
+    garage_cover:
+      name: Garage cover
+      description: The garage cover entity to control.
+      selector:
+        entity:
+          domain:
+            - cover
+          multiple: false
+    outside_temp_sensor:
+      name: Outdoor temperature sensor
+      description: Sensor used for the outside temperature comparison.
+      selector:
+        entity:
+          domain:
+            - sensor
+          multiple: false
+    garage_temp_sensor:
+      name: Garage temperature sensor
+      description: Sensor used for the garage temperature comparison.
+      selector:
+        entity:
+          domain:
+            - sensor
+          multiple: false
+    distance_sensor:
+      name: Nearest house distance sensor
+      description: Sensor giving the nearest house distance.
+      selector:
+        entity:
+          domain:
+            - sensor
+          multiple: false
+    lightning_distance_sensor:
+      name: Lightning distance sensor
+      description: Sensor giving lightning distance.
+      selector:
+        entity:
+          domain:
+            - sensor
+          multiple: false
+    authorization_switch:
+      name: Garage authorization switch
+      description: Boolean that authorizes automatic garage movement.
+      selector:
+        entity:
+          domain:
+            - input_boolean
+          multiple: false
+    distance_open_threshold:
+      name: Opening distance threshold
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 1
+          unit_of_measurement: m
+          mode: box
+    distance_close_threshold:
+      name: Closing distance threshold
+      default: 500
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 1
+          unit_of_measurement: m
+          mode: box
+    temp_comfort_threshold:
+      name: Comfort temperature threshold
+      default: 18
+      selector:
+        number:
+          min: -30
+          max: 40
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+    temp_warm_threshold:
+      name: Warm temperature threshold
+      default: 23
+      selector:
+        number:
+          min: -30
+          max: 40
+          step: 0.5
+          unit_of_measurement: °C
+          mode: box
+    lightning_danger_threshold:
+      name: Lightning danger threshold
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 200
+          step: 1
+          unit_of_measurement: km
+          mode: box
+    lightning_safe_threshold:
+      name: Lightning safe threshold
+      default: 81
+      selector:
+        number:
+          min: 0
+          max: 200
+          step: 1
+          unit_of_measurement: km
+          mode: box
+    cooldown_minutes:
+      name: Cooldown before a new check
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 180
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+mode: single
+trigger:
+  - platform: state
+    entity_id: !input outside_temp_sensor
+    id: temp_outdoor
+  - platform: state
+    entity_id: !input garage_temp_sensor
+    id: temp_garage
+  - platform: time_pattern
+    minutes: "/15"
+    id: check_periodique
+  - platform: numeric_state
+    entity_id: !input distance_sensor
+    above: !input distance_close_threshold
+    id: distance_loin
+  - platform: state
+    entity_id: !input authorization_switch
+    id: buttonn
+  - platform: numeric_state
+    entity_id: !input lightning_distance_sensor
+    below: !input lightning_danger_threshold
+    id: foudre_danger
+condition:
+  - condition: or
+    conditions:
+      - condition: trigger
+        id:
+          - foudre_danger
+          - distance_loin
+      - condition: or
+        conditions:
+          - condition: template
+            value_template: >-
+              {{ (now() - states[garage_cover].last_changed).total_seconds() > (cooldown_minutes | int) * 60 }}
+          - condition: trigger
+            id:
+              - buttonn
+action:
+  - choose:
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: state
+                entity_id: !input garage_cover
+                state: open
+              - condition: template
+                value_template: >-
+                  {% set current_position = state_attr(garage_cover, 'current_position') | int(0) %}
+                  {{ 49 < current_position < 51 }}
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: !input authorization_switch
+                    state: "off"
+                  - condition: template
+                    value_template: >-
+                      {% set outside = states(temp_ext) | float(0) %}
+                      {% set garage = states(temp_garage) | float(0) %}
+                      {{ outside > garage and outside > temp_seuil_confort }}
+                  - condition: template
+                    value_template: >-
+                      {% set outside = states(temp_ext) | float(0) %}
+                      {% set garage = states(temp_garage) | float(0) %}
+                      {{ outside < garage and outside < temp_seuil_confort }}
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: !input garage_cover
+        alias: Fermeture Nominale
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: not
+                conditions:
+                  - condition: state
+                    entity_id: !input garage_cover
+                    state: open
+              - condition: numeric_state
+                entity_id: !input distance_sensor
+                below: !input distance_open_threshold
+              - condition: sun
+                after: sunrise
+                after_offset:
+                  hours: 0
+                  minutes: 30
+                  seconds: 0
+                before: sunset
+                before_offset: "-00:15:00"
+              - condition: state
+                entity_id: !input authorization_switch
+                state: "on"
+              - condition: or
+                conditions:
+                  - condition: numeric_state
+                    entity_id: !input lightning_distance_sensor
+                    above: !input lightning_safe_threshold
+                  - condition: state
+                    entity_id: !input lightning_distance_sensor
+                    state: unknown
+                  - condition: state
+                    entity_id: !input lightning_distance_sensor
+                    state: unavailable
+              - condition: or
+                conditions:
+                  - condition: template
+                    value_template: >-
+                      {% set outside = states(temp_ext) | float(0) %}
+                      {% set garage = states(temp_garage) | float(0) %}
+                      {{ 16 < outside < garage }}
+                  - condition: template
+                    value_template: >-
+                      {% set outside = states(temp_ext) | float(0) %}
+                      {% set garage = states(temp_garage) | float(0) %}
+                      {{ outside < 16 and outside > garage }}
+        sequence:
+          - service: cover.set_cover_position
+            data:
+              position: 50
+            target:
+              entity_id: !input garage_cover
+        alias: Ouverture Nominale
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: and
+                conditions:
+                  - condition: or
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: !input distance_sensor
+                        above: !input distance_open_threshold
+                      - condition: sun
+                        after: sunset
+                        after_offset:
+                          hours: 0
+                          minutes: -15
+                          seconds: 0
+                        before: sunrise
+                        before_offset:
+                          hours: 0
+                          minutes: 30
+                          seconds: 0
+                      - condition: and
+                        conditions:
+                          - condition: trigger
+                            id: buttonn
+                          - condition: state
+                            entity_id: !input authorization_switch
+                            state: "off"
+                      - condition: numeric_state
+                        entity_id: !input lightning_distance_sensor
+                        below: !input lightning_danger_threshold
+                  - condition: not
+                    conditions:
+                      - condition: state
+                        entity_id: !input garage_cover
+                        state: closed
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: !input garage_cover
+        alias: Fermeture d'urgence
+variables:
+  garage_cover: !input garage_cover
+  distance_proche: !input distance_sensor
+  distance_seuil_ouverture: !input distance_open_threshold
+  distance_seuil_fermeture: !input distance_close_threshold
+  temp_ext: !input outside_temp_sensor
+  temp_garage: !input garage_temp_sensor
+  temp_seuil_confort: !input temp_comfort_threshold
+  temp_seuil_chaud: !input temp_warm_threshold
+  foudre_distance: !input lightning_distance_sensor
+  foudre_seuil_danger: !input lightning_danger_threshold
+  foudre_seuil_sur: !input lightning_safe_threshold
+  autorisation_garage: !input authorization_switch
+  cooldown_minutes: !input cooldown_minutes
