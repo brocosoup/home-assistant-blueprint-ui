@@ -165,7 +165,7 @@ blueprint:
           default: 30
           selector:
             number:
-              min: -180
+              min: 0
               max: 180
               step: 1
               unit_of_measurement: min
@@ -186,7 +186,7 @@ blueprint:
           default: 15
           selector:
             number:
-              min: -180
+              min: 0
               max: 180
               step: 1
               unit_of_measurement: min
@@ -204,10 +204,10 @@ blueprint:
         sun_close_start_offset_minutes:
           name: "🌙 Closing window start offset"
           description: "Minutes before/after sunset. Negative values are allowed."
-          default: -15
+          default: 15
           selector:
             number:
-              min: -180
+              min: 0
               max: 180
               step: 1
               unit_of_measurement: min
@@ -228,7 +228,7 @@ blueprint:
           default: 30
           selector:
             number:
-              min: -180
+              min: 0
               max: 180
               step: 1
               unit_of_measurement: min
