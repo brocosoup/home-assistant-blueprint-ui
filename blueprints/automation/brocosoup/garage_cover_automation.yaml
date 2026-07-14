@@ -1,5 +1,5 @@
 blueprint:
-  name: "🚪 Garage Cover Automation v1.2"
+  name: "🚪 Garage Cover Automation v1.3"
   author: brocosoup
   description: >-
     🌤️ This blueprint gives your garage cover a smart, weather-aware behavior.
@@ -161,15 +161,10 @@ blueprint:
       input:
         sun_open_start_offset_minutes:
           name: "☀️ Opening window start offset"
-          description: "Minutes before/after sunrise. Negative values are allowed."
-          default: 30
+          description: "Offset for the opening window, for example 00:30:00 or -00:15:00"
+          default: "00:30:00"
           selector:
-            number:
-              min: 0
-              max: 180
-              step: 1
-              unit_of_measurement: min
-              mode: box
+            text: {}
         sun_open_start_direction:
           name: "☀️ Opening window start relation"
           default: after
@@ -182,15 +177,10 @@ blueprint:
                   value: before
         sun_open_end_offset_minutes:
           name: "🌅 Opening window end offset"
-          description: "Minutes before/after sunset. Negative values are allowed."
-          default: 15
+          description: "Offset for the opening window, for example 00:15:00 or -00:15:00"
+          default: "-00:15:00"
           selector:
-            number:
-              min: 0
-              max: 180
-              step: 1
-              unit_of_measurement: min
-              mode: box
+            text: {}
         sun_open_end_direction:
           name: "🌅 Opening window end relation"
           default: before
@@ -203,15 +193,10 @@ blueprint:
                   value: after
         sun_close_start_offset_minutes:
           name: "🌙 Closing window start offset"
-          description: "Minutes before/after sunset. Negative values are allowed."
-          default: 15
+          description: "Offset for the closing window, for example 00:15:00 or -00:15:00"
+          default: "-00:15:00"
           selector:
-            number:
-              min: 0
-              max: 180
-              step: 1
-              unit_of_measurement: min
-              mode: box
+            text: {}
         sun_close_start_direction:
           name: "🌙 Closing window start relation"
           default: after
@@ -224,15 +209,10 @@ blueprint:
                   value: before
         sun_close_end_offset_minutes:
           name: "🌤️ Closing window end offset"
-          description: "Minutes before/after sunrise. Negative values are allowed."
-          default: 30
+          description: "Offset for the closing window, for example 00:30:00 or -00:15:00"
+          default: "00:30:00"
           selector:
-            number:
-              min: 0
-              max: 180
-              step: 1
-              unit_of_measurement: min
-              mode: box
+            text: {}
         sun_close_end_direction:
           name: "🌤️ Closing window end relation"
           default: before
@@ -275,24 +255,38 @@ blueprint:
               mode: box
 
 mode: single
+variables:
+  garage_cover: !input garage_cover
+  distance_proche: !input distance_sensor
+  distance_seuil_ouverture: !input distance_open_threshold
+  distance_seuil_fermeture: !input distance_close_threshold
+  temp_ext: !input outside_temp_sensor
+  temp_garage: !input garage_temp_sensor
+  temp_seuil_confort: !input temp_comfort_threshold
+  temp_seuil_chaud: !input temp_warm_threshold
+  foudre_distance: !input lightning_distance_sensor
+  foudre_seuil_danger: !input lightning_danger_threshold
+  foudre_seuil_sur: !input lightning_safe_threshold
+  autorisation_garage: !input authorization_switch
+  cooldown_minutes: !input cooldown_minutes
 trigger:
-  - platform: state
+  - trigger: state
     entity_id: !input outside_temp_sensor
-    id: temp_outdoor
-  - platform: state
+    id: temp_outside
+  - trigger: state
     entity_id: !input garage_temp_sensor
     id: temp_garage
-  - platform: time_pattern
-    minutes: "/15"
+  - trigger: time_pattern
+    minutes: /15
     id: check_periodique
-  - platform: numeric_state
+  - trigger: numeric_state
     entity_id: !input distance_sensor
     above: !input distance_close_threshold
     id: distance_loin
-  - platform: state
+  - trigger: state
     entity_id: !input authorization_switch
     id: buttonn
-  - platform: numeric_state
+  - trigger: numeric_state
     entity_id: !input lightning_distance_sensor
     below: !input lightning_danger_threshold
     id: foudre_danger
@@ -319,29 +313,34 @@ action:
               - condition: state
                 entity_id: !input garage_cover
                 state: open
-              - condition: template
-                value_template: >-
-                  {% set current_position = state_attr(garage_cover, 'current_position') | int(0) %}
-                  {% set target_position = nominal_open_position | int(50) %}
-                  {% set tolerance = position_tolerance_percent | int(1) %}
-                  {{ target_position - tolerance < current_position < target_position + tolerance }}
+              - condition: numeric_state
+                entity_id: !input garage_cover
+                attribute: current_position
+                above: 49
+                below: 51
               - condition: or
                 conditions:
                   - condition: state
                     entity_id: !input authorization_switch
                     state: "off"
-                  - condition: template
-                    value_template: >-
-                      {% set outside = states(temp_ext) | float(0) %}
-                      {% set garage = states(temp_garage) | float(0) %}
-                      {{ outside > garage and outside > temp_seuil_confort }}
-                  - condition: template
-                    value_template: >-
-                      {% set outside = states(temp_ext) | float(0) %}
-                      {% set garage = states(temp_garage) | float(0) %}
-                      {{ outside < garage and outside < temp_seuil_confort }}
+                  - condition: and
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        above: !input garage_temp_sensor
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        above: !input temp_comfort_threshold
+                  - condition: and
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        below: !input garage_temp_sensor
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        below: !input temp_comfort_threshold
         sequence:
-          - service: cover.close_cover
+          - action: cover.close_cover
             target:
               entity_id: !input garage_cover
         alias: Fermeture Nominale
@@ -356,16 +355,11 @@ action:
               - condition: numeric_state
                 entity_id: !input distance_sensor
                 below: !input distance_open_threshold
-              - condition: template
-                value_template: >-
-                  {% set now_ts = as_timestamp(now()) %}
-                  {% set sunrise_ts = as_timestamp(state_attr('sun.sun', 'next_rising')) | default(0) %}
-                  {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) | default(0) %}
-                  {% set start_offset_seconds = sun_open_start_offset_minutes | int(0) * 60 %}
-                  {% set end_offset_seconds = sun_open_end_offset_minutes | int(0) * 60 %}
-                  {% set start_time = sunrise_ts + start_offset_seconds if sun_open_start_direction == 'after' else sunrise_ts - start_offset_seconds %}
-                  {% set end_time = sunset_ts + end_offset_seconds if sun_open_end_direction == 'after' else sunset_ts - end_offset_seconds %}
-                  {{ start_time <= now_ts <= end_time }}
+              - condition: sun
+                after: sunrise
+                after_offset: !input sun_open_start_offset_minutes
+                before: sunset
+                before_offset: !input sun_open_end_offset_minutes
               - condition: state
                 entity_id: !input authorization_switch
                 state: "on"
@@ -382,18 +376,24 @@ action:
                     state: unavailable
               - condition: or
                 conditions:
-                  - condition: template
-                    value_template: >-
-                      {% set outside = states(temp_ext) | float(0) %}
-                      {% set garage = states(temp_garage) | float(0) %}
-                      {{ temp_seuil_ouverture < outside < garage }}
-                  - condition: template
-                    value_template: >-
-                      {% set outside = states(temp_ext) | float(0) %}
-                      {% set garage = states(temp_garage) | float(0) %}
-                      {{ outside < temp_seuil_ouverture and outside > garage }}
+                  - condition: and
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        above: !input temp_open_threshold
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        below: !input garage_temp_sensor
+                  - condition: and
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        below: !input temp_open_threshold
+                      - condition: numeric_state
+                        entity_id: !input outside_temp_sensor
+                        above: !input garage_temp_sensor
         sequence:
-          - service: cover.set_cover_position
+          - action: cover.set_cover_position
             data:
               position: !input nominal_open_position
             target:
@@ -408,17 +408,12 @@ action:
                     conditions:
                       - condition: numeric_state
                         entity_id: !input distance_sensor
-                        above: !input distance_open_threshold
-                      - condition: template
-                        value_template: >-
-                          {% set now_ts = as_timestamp(now()) %}
-                          {% set sunrise_ts = as_timestamp(state_attr('sun.sun', 'next_rising')) | default(0) %}
-                          {% set sunset_ts = as_timestamp(state_attr('sun.sun', 'next_setting')) | default(0) %}
-                          {% set start_offset_seconds = sun_close_start_offset_minutes | int(0) * 60 %}
-                          {% set end_offset_seconds = sun_close_end_offset_minutes | int(0) * 60 %}
-                          {% set start_time = sunset_ts + start_offset_seconds if sun_close_start_direction == 'after' else sunset_ts - start_offset_seconds %}
-                          {% set end_time = sunrise_ts + end_offset_seconds if sun_close_end_direction == 'after' else sunrise_ts - end_offset_seconds %}
-                          {{ start_time <= now_ts <= end_time }}
+                        above: !input distance_close_threshold
+                      - condition: sun
+                        after: sunset
+                        after_offset: !input sun_close_start_offset_minutes
+                        before: sunrise
+                        before_offset: !input sun_close_end_offset_minutes
                       - condition: and
                         conditions:
                           - condition: trigger
@@ -435,32 +430,7 @@ action:
                         entity_id: !input garage_cover
                         state: closed
         sequence:
-          - service: cover.close_cover
+          - action: cover.close_cover
             target:
               entity_id: !input garage_cover
         alias: Fermeture d'urgence
-variables:
-  garage_cover: !input garage_cover
-  distance_proche: !input distance_sensor
-  distance_seuil_ouverture: !input distance_open_threshold
-  distance_seuil_fermeture: !input distance_close_threshold
-  temp_ext: !input outside_temp_sensor
-  temp_garage: !input garage_temp_sensor
-  temp_seuil_confort: !input temp_comfort_threshold
-  temp_seuil_ouverture: !input temp_open_threshold
-  temp_seuil_chaud: !input temp_warm_threshold
-  foudre_distance: !input lightning_distance_sensor
-  foudre_seuil_danger: !input lightning_danger_threshold
-  foudre_seuil_sur: !input lightning_safe_threshold
-  autorisation_garage: !input authorization_switch
-  sun_open_start_offset_minutes: !input sun_open_start_offset_minutes
-  sun_open_start_direction: !input sun_open_start_direction
-  sun_open_end_offset_minutes: !input sun_open_end_offset_minutes
-  sun_open_end_direction: !input sun_open_end_direction
-  sun_close_start_offset_minutes: !input sun_close_start_offset_minutes
-  sun_close_start_direction: !input sun_close_start_direction
-  sun_close_end_offset_minutes: !input sun_close_end_offset_minutes
-  sun_close_end_direction: !input sun_close_end_direction
-  nominal_open_position: !input nominal_open_position
-  position_tolerance_percent: !input position_tolerance_percent
-  cooldown_minutes: !input cooldown_minutes
